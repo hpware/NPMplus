@@ -35,7 +35,7 @@ COPY patches/*.patch /src
 COPY rootfs/usr/local/bin/git-clone-commit.sh /usr/local/bin/git-clone-commit.sh
 
 RUN apk upgrade --no-cache -a && \
-    apk add --no-cache git clang lld compiler-rt llvm-libunwind-dev libc++-dev linux-headers perl go cmake ninja make llvm file \
+    apk add --no-cache git clang lld compiler-rt llvm-libunwind-dev libc++-dev linux-headers cmake ninja make llvm file \
                        libatomic_ops-dev pcre2-dev luajit-dev zlib-ng-dev brotli-dev zstd-dev libxslt-dev openldap-dev quickjs-ng-dev libmaxminddb-dev clang-dev
 
 RUN for f in $(apk info --no-cache -qL libgcc-static libstdc++-dev); do rm /"$f"; done && \
@@ -57,7 +57,7 @@ RUN git config --global advice.detachedHead false && \
 RUN git-clone-commit.sh https://github.com/aws/aws-lc "$AWSLC_VER" /src/aws-lc && \
     cd /src/aws-lc && \
     git apply /src/aws-lc-tls13-cipher-preference.patch && \
-    cmake /src/aws-lc -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF && \
+    cmake /src/aws-lc -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DDISABLE_GO=ON -DDISABLE_PERL=ON -DBUILD_TESTING=OFF && \
     ninja install
 
 RUN git-clone-commit.sh https://github.com/nginx/nginx "$NGINX_VER" /src/nginx && \
