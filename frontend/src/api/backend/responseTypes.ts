@@ -6,6 +6,9 @@ export interface HealthResponse {
 	setup: boolean;
 	password: boolean;
 	oidc: boolean;
+	oidcProviderName: string;
+	oidcAutoCreateUsers: boolean;
+	analyticsRetentionDays: number;
 }
 
 export interface TokenResponse {

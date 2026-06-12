@@ -1,6 +1,7 @@
 import {
 	IconDotsVertical,
 	IconEdit,
+	IconKey,
 	IconLock,
 	IconLogin2,
 	IconPower,
@@ -28,6 +29,7 @@ interface Props {
 	currentUserId?: number;
 	onEditUser?: (id: number) => void;
 	onEditPermissions?: (id: number) => void;
+	onEditApiKeys?: (id: number) => void;
 	onSetPassword?: (id: number) => void;
 	onDeleteUser?: (id: number) => void;
 	onDisableToggle?: (id: number, enabled: boolean) => void;
@@ -41,6 +43,7 @@ export default function Table({
 	currentUserId,
 	onEditUser,
 	onEditPermissions,
+	onEditApiKeys,
 	onSetPassword,
 	onDeleteUser,
 	onDisableToggle,
@@ -136,6 +139,17 @@ export default function Table({
 									<IconEdit size={16} />
 									<T id="action.edit" />
 								</a>
+								<a
+									className="dropdown-item"
+									href="#"
+									onClick={(e) => {
+										e.preventDefault();
+										onEditApiKeys?.(info.row.original.id);
+									}}
+								>
+									<IconKey size={16} />
+									API keys
+								</a>
 								{currentUserId !== info.row.original.id ? (
 									<>
 										<a
@@ -219,6 +233,7 @@ export default function Table({
 			onDisableToggle,
 			onDeleteUser,
 			onEditPermissions,
+			onEditApiKeys,
 			onSetPassword,
 			onLoginAs,
 		],

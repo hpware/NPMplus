@@ -400,6 +400,9 @@ fi
 
 if [ "$GOA" = "true" ]; then
     mkdir -vp /data/goaccess/data /data/goaccess/geoip
+fi
+
+if [ "$GOA" = "true" ] && [ "$GOA_STANDALONE" = "true" ]; then
     cp -van /usr/local/nginx/conf/conf.d/goaccess.conf.disabled /usr/local/nginx/conf/conf.d/goaccess.conf
 fi
 
@@ -446,6 +449,18 @@ if [ "$NGINX_LOAD_NJS_MODULE" = "true" ]; then
 fi
 if [ "$NGINX_LOAD_GEOIP2_MODULE" = "true" ]; then
     sed -i "s|#\(load_module.\+geoip2_module.so;\)|\1|g" /usr/local/nginx/conf/nginx.conf
+    if [ -s /data/goaccess/geoip/GeoLite2-Country.mmdb ]; then
+        cat > /usr/local/nginx/conf/conf.d/geoip-country.conf <<'EOF'
+geoip2 /data/goaccess/geoip/GeoLite2-Country.mmdb {
+  auto_reload 1h;
+  $geoip2_country_iso_code country iso_code;
+}
+EOF
+    else
+        rm -f /usr/local/nginx/conf/conf.d/geoip-country.conf
+    fi
+else
+    rm -f /usr/local/nginx/conf/conf.d/geoip-country.conf
 fi
 if [ "$NGINX_LOAD_LDAP_MODULE" = "true" ]; then
     sed -i "s|#\(load_module.\+ngx_http_auth_ldap_module.so;\)|\1|g" /usr/local/nginx/conf/nginx.conf

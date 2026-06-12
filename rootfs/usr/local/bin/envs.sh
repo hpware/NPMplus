@@ -124,6 +124,8 @@ export DISABLE_NGINX_BEAUTIFIER="${DISABLE_NGINX_BEAUTIFIER:-false}"
 export TRUST_CLOUDFLARE="${TRUST_CLOUDFLARE:-false}"
 export LOGROTATE="${LOGROTATE:-false}"
 export LOGROTATIONS="${LOGROTATIONS:-3}"
+export NPMPLUS_ANALYTICS_RETENTION_DAYS="${NPMPLUS_ANALYTICS_RETENTION_DAYS:-3}"
+export NPMPLUS_GEOIP_COUNTRY_BLOCKING="${NPMPLUS_GEOIP_COUNTRY_BLOCKING:-false}"
 export CERTBOT_RUN_INTERVAL="${CERTBOT_RUN_INTERVAL:-3}"
 export ECH_ROTATION_INTERVAL="${ECH_ROTATION_INTERVAL:-1}"
 export GOA="${GOA:-false}"
@@ -571,6 +573,16 @@ fi
 
 if [ -n "$LOGROTATIONS" ] && ! echo "$LOGROTATIONS" | grep -q "^[0-9]\+$"; then
     echo "LOGROTATIONS needs to be a number."
+    sleep inf
+fi
+
+if [ -n "$NPMPLUS_ANALYTICS_RETENTION_DAYS" ] && ! echo "$NPMPLUS_ANALYTICS_RETENTION_DAYS" | grep -q "^[0-9]\+$"; then
+    echo "NPMPLUS_ANALYTICS_RETENTION_DAYS needs to be a number."
+    sleep inf
+fi
+
+if ! echo "$NPMPLUS_GEOIP_COUNTRY_BLOCKING" | grep -q "^true$\|^false$"; then
+    echo "NPMPLUS_GEOIP_COUNTRY_BLOCKING needs to be true or false."
     sleep inf
 fi
 

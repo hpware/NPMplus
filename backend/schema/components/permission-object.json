@@ -70,6 +70,16 @@
 				"manage"
 			],
 			"example": "hidden"
+		},
+		"dns": {
+			"type": "string",
+			"description": "DNS Provider Permissions",
+			"enum": [
+				"hidden",
+				"view",
+				"manage"
+			],
+			"example": "view"
 		}
 	}
 }

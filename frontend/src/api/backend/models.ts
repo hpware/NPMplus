@@ -10,6 +10,7 @@ export interface UserPermissions {
 	streams: string;
 	accessLists: string;
 	certificates: string;
+	dns: string;
 }
 
 export interface User {
@@ -23,6 +24,26 @@ export interface User {
 	avatar: string;
 	roles: string[];
 	permissions?: UserPermissions;
+}
+
+export interface UserApiKey {
+	id: number;
+	createdOn: string;
+	modifiedOn: string;
+	userId: number;
+	name: string;
+	tokenPrefix: string;
+	permissions: UserPermissions & { admin?: boolean };
+	expiresOn?: string | null;
+	lastUsedOn?: string | null;
+	isDeleted?: boolean;
+	token?: string;
+}
+
+export interface UserApiKeyCreate {
+	name: string;
+	permissions: Partial<UserPermissions> & { admin?: boolean };
+	expiresOn?: string | null;
 }
 
 export interface AuditLog {
@@ -161,6 +182,23 @@ export interface ProxyHost {
 	npmplusXFrameOptions: string;
 	npmplusAuthRequest: string;
 	npmplusAuthRequestUpstream: string;
+	failbackEnabled: boolean;
+	failbackHost: string;
+	failbackPort: number | null;
+}
+
+export interface ProxyHostAnalytics {
+	totalRequests: number;
+	totalBytesSent: number;
+	averageRequestTime: number;
+	uptimePercent: number;
+	lastSeen: string | null;
+	statuses: Record<string, number>;
+	methods: Record<string, number>;
+	topPaths: Array<{
+		path: string;
+		requests: number;
+	}>;
 }
 
 export interface DeadHost {

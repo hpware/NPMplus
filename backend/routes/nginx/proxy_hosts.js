@@ -75,6 +75,31 @@ router
 	});
 
 /**
+ * Clear all proxy-host analytics
+ *
+ * /api/nginx/proxy-hosts/analytics
+ */
+router
+	.route("/analytics")
+	.options((_, res) => {
+		res.sendStatus(204);
+	})
+	.all(jwtdecode())
+
+	/**
+	 * DELETE /api/nginx/proxy-hosts/analytics
+	 */
+	.delete(async (req, res, next) => {
+		try {
+			const result = await internalProxyHost.clearAnalytics(res.locals.access);
+			res.status(200).send(result);
+		} catch (err) {
+			debug(logger, `${req.method.toUpperCase()} ${req.originalUrl}: ${err}`);
+			next(err);
+		}
+	});
+
+/**
  * Specific proxy-host
  *
  * /api/nginx/proxy-hosts/123
@@ -147,6 +172,33 @@ router
 	.delete(async (req, res, next) => {
 		try {
 			const result = await internalProxyHost.delete(res.locals.access, {
+				id: Number.parseInt(req.params.host_id, 10),
+			});
+			res.status(200).send(result);
+		} catch (err) {
+			debug(logger, `${req.method.toUpperCase()} ${req.originalUrl}: ${err}`);
+			next(err);
+		}
+	});
+
+/**
+ * Proxy-host analytics
+ *
+ * /api/nginx/proxy-hosts/123/analytics
+ */
+router
+	.route("/:host_id/analytics")
+	.options((_, res) => {
+		res.sendStatus(204);
+	})
+	.all(jwtdecode())
+
+	/**
+	 * GET /api/nginx/proxy-hosts/123/analytics
+	 */
+	.get(async (req, res, next) => {
+		try {
+			const result = await internalProxyHost.getAnalytics(res.locals.access, {
 				id: Number.parseInt(req.params.host_id, 10),
 			});
 			res.status(200).send(result);

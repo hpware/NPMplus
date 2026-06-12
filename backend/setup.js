@@ -1,19 +1,18 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
+import internalNginx from "./internal/nginx.js";
+import internalProxyHostAccessList from "./internal/proxy-host-access-list.js";
 import { installPlugins } from "./lib/certbot.js";
 import utils from "./lib/utils.js";
 import { setup as logger } from "./logger.js";
 import authModel from "./models/auth.js";
 import certificateModel from "./models/certificate.js";
-import settingModel from "./models/setting.js";
-import userModel from "./models/user.js";
-import userPermissionModel from "./models/user_permission.js";
-
+import deadModel from "./models/dead_host.js";
 import proxyModel from "./models/proxy_host.js";
 import redirectionModel from "./models/redirection_host.js";
-import deadModel from "./models/dead_host.js";
+import settingModel from "./models/setting.js";
 import streamModel from "./models/stream.js";
-import internalNginx from "./internal/nginx.js";
-import internalProxyHostAccessList from "./internal/proxy-host-access-list.js";
+import userModel from "./models/user.js";
+import userPermissionModel from "./models/user_permission.js";
 
 export const isSetup = async () => {
 	const row = await userModel.query().select("id").where("is_deleted", 0).first();
@@ -70,6 +69,7 @@ const setupDefaultUser = async () => {
 			streams: "manage",
 			access_lists: "manage",
 			certificates: "manage",
+			dns: "manage",
 		});
 		logger.info("Initial admin setup completed");
 	}
@@ -90,6 +90,26 @@ const setupDefaultSettings = async () => {
 			meta: {},
 		});
 		logger.info("Default settings added");
+	}
+
+	if (!(await settingModel.query().select("id").where({ id: "security-policy" }).first())?.id) {
+		await settingModel.query().insert({
+			id: "security-policy",
+			name: "Security Policy",
+			description: "Global host blocking, country policy, WAF defaults, and security credentials",
+			value: "enabled",
+			meta: {
+				default_waf_enabled: false,
+				blocked_hostnames: "",
+				blocked_ports: "",
+				country_access_mode: "disabled",
+				country_access_codes: "",
+				credential_username: "",
+				credential_password: "",
+				openappsec_agent_token: "",
+			},
+		});
+		logger.info("Security policy setting added");
 	}
 
 	if ((await settingModel.query().select("id").where({ id: "oidc-config" }).first())?.id) {

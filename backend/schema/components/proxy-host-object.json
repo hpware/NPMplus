@@ -37,7 +37,10 @@
 		"npmplus_auth_request",
 		"npmplus_auth_request_upstream",
 		"npmplus_disable_uri_sanitisation",
-		"npmplus_spoof_host_header"
+		"npmplus_spoof_host_header",
+		"failback_enabled",
+		"failback_host",
+		"failback_port"
 	],
 	"properties": {
 		"id": {
@@ -140,6 +143,23 @@
 		"npmplus_auth_request_upstream": {
 			"type": "string",
 			"example": ""
+		},
+		"failback_enabled": {
+			"type": "boolean",
+			"example": false
+		},
+		"failback_host": {
+			"type": "string",
+			"example": "127.0.0.2"
+		},
+		"failback_port": {
+			"type": [
+				"integer",
+				"null"
+			],
+			"minimum": 1,
+			"maximum": 65535,
+			"example": 8081
 		},
 		"advanced_config": {
 			"type": "string",

@@ -22,7 +22,31 @@ import errs from "./error.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export default function (tokenString) {
+const permissionRank = {
+	hidden: 0,
+	view: 1,
+	manage: 2,
+};
+
+const lowerPermission = (apiPermission, userPermission) => {
+	if (!apiPermission || !userPermission) {
+		return "hidden";
+	}
+	return permissionRank[apiPermission] <= permissionRank[userPermission] ? apiPermission : userPermission;
+};
+
+const mergeApiPermissions = (apiPermissions, userPermissions) => ({
+	visibility: apiPermissions.visibility === "all" && userPermissions.visibility === "all" ? "all" : "user",
+	proxy_hosts: lowerPermission(apiPermissions.proxy_hosts, userPermissions.proxy_hosts),
+	redirection_hosts: lowerPermission(apiPermissions.redirection_hosts, userPermissions.redirection_hosts),
+	dead_hosts: lowerPermission(apiPermissions.dead_hosts, userPermissions.dead_hosts),
+	streams: lowerPermission(apiPermissions.streams, userPermissions.streams),
+	access_lists: lowerPermission(apiPermissions.access_lists, userPermissions.access_lists),
+	certificates: lowerPermission(apiPermissions.certificates, userPermissions.certificates),
+	dns: lowerPermission(apiPermissions.dns, userPermissions.dns),
+});
+
+export default function (tokenString, apiKeyContext = null) {
 	const Token = TokenModel();
 	let tokenData = null;
 	let initialised = false;
@@ -41,11 +65,20 @@ export default function (tokenString) {
 			return;
 		}
 
-		if (!tokenString) {
+		if (!tokenString && !apiKeyContext) {
 			throw new errs.PermissionError("Permission Denied");
 		}
 
-		tokenData = await Token.load(tokenString);
+		if (apiKeyContext) {
+			tokenData = {
+				attrs: { id: apiKeyContext.user_id },
+				scope: ["user"],
+			};
+			Token.set("attrs", tokenData.attrs);
+			Token.set("scope", tokenData.scope);
+		} else {
+			tokenData = await Token.load(tokenString);
+		}
 
 		// At this point we need to load the user from the DB and make sure they:
 		// - exist (and not soft deleted)
@@ -81,8 +114,13 @@ export default function (tokenString) {
 					throw new errs.AuthError("Invalid token scope for User");
 				}
 				initialised = true;
-				userRoles = user.roles;
-				permissions = user.permissions;
+				userRoles =
+					apiKeyContext && apiKeyContext.permissions?.admin !== true
+						? user.roles.filter((role) => role !== "admin")
+						: user.roles;
+				permissions = apiKeyContext
+					? mergeApiPermissions(apiKeyContext.permissions || {}, user.permissions || {})
+					: user.permissions;
 			} else {
 				throw new errs.AuthError("User cannot be loaded for Token");
 			}
@@ -205,6 +243,10 @@ export default function (tokenString) {
 			if (tokenString) {
 				return await Token.load(tokenString);
 			}
+			if (apiKeyContext) {
+				await this.init();
+				return true;
+			}
 			allowInternalAccess = allowInternal;
 			return allowInternal || null;
 		},
@@ -238,6 +280,7 @@ export default function (tokenString) {
 						permission_streams: permissions.streams,
 						permission_access_lists: permissions.access_lists,
 						permission_certificates: permissions.certificates,
+						permission_dns: permissions.dns,
 					},
 				};
 

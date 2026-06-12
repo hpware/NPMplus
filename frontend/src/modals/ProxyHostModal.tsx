@@ -58,9 +58,18 @@ const ProxyHostModal = EasyModal.create(({ id, isClone = false, visible, remove 
 		const { ...payload } = {
 			id: id === "new" || isClone ? undefined : id,
 			...values,
+			meta: {
+				...(values.meta || {}),
+				custom_error_page_4xx: values.customErrorPage4xx || "",
+				custom_error_page_5xx: values.customErrorPage5xx || "",
+				country_access_mode: values.countryAccessMode || "disabled",
+				country_access_codes: (values.countryAccessCodes || "").toUpperCase(),
+			},
 			npmplusAccessListIds: globalAclIds,
 			locations,
 			forwardPort: values.forwardPort || null,
+			failbackPort: values.failbackEnabled ? values.failbackPort || null : null,
+			failbackHost: values.failbackEnabled ? values.failbackHost || "" : "",
 		};
 
 		setProxyHost(payload, {
@@ -139,6 +148,13 @@ const ProxyHostModal = EasyModal.create(({ id, isClone = false, visible, remove 
 							npmplusXFrameOptions: data?.npmplusXFrameOptions || "SAMEORIGIN",
 							npmplusAuthRequest: data?.npmplusAuthRequest || "none",
 							npmplusAuthRequestUpstream: data?.npmplusAuthRequestUpstream || "",
+							failbackEnabled: data?.failbackEnabled || false,
+							failbackHost: data?.failbackHost || "",
+							failbackPort: data?.failbackPort || undefined,
+							customErrorPage4xx: data?.meta?.customErrorPage4xx || "",
+							customErrorPage5xx: data?.meta?.customErrorPage5xx || "",
+							countryAccessMode: data?.meta?.countryAccessMode || "disabled",
+							countryAccessCodes: data?.meta?.countryAccessCodes || "",
 						} as any
 					}
 					onSubmit={onSubmit}
@@ -373,6 +389,85 @@ const ProxyHostModal = EasyModal.create(({ id, isClone = false, visible, remove 
 														name="npmplusAccessListIds"
 														type="npmplusAccessListType"
 													/>
+												</div>
+												<div className="my-3">
+													<h4 className="py-2">Failback</h4>
+													<div className="divide-y">
+														<div>
+															<label className="row" htmlFor="failbackEnabled">
+																<span className="col">
+																	Use a backup upstream if the primary is unavailable
+																</span>
+																<span className="col-auto">
+																	<Field name="failbackEnabled" type="checkbox">
+																		{({ field }: any) => (
+																			<label className="form-check form-check-single form-switch">
+																				<input
+																					{...field}
+																					id="failbackEnabled"
+																					className={cn("form-check-input", {
+																						"bg-lime": field.checked,
+																					})}
+																					type="checkbox"
+																				/>
+																			</label>
+																		)}
+																	</Field>
+																</span>
+															</label>
+														</div>
+													</div>
+													{values.failbackEnabled && (
+														<div className="row mt-3">
+															<div className="col-md-8">
+																<Field name="failbackHost">
+																	{({ field, form }: any) => (
+																		<div className="mb-3">
+																			<label
+																				className="form-label"
+																				htmlFor="failbackHost"
+																			>
+																				Backup host
+																			</label>
+																			<input
+																				id="failbackHost"
+																				type="text"
+																				className={`form-control ${form.errors.failbackHost && form.touched.failbackHost ? "is-invalid" : ""}`}
+																				placeholder="backup.example.com"
+																				{...field}
+																			/>
+																		</div>
+																	)}
+																</Field>
+															</div>
+															<div className="col-md-4">
+																<Field
+																	name="failbackPort"
+																	validate={validateNumber(1, 65535)}
+																>
+																	{({ field, form }: any) => (
+																		<div className="mb-3">
+																			<label
+																				className="form-label"
+																				htmlFor="failbackPort"
+																			>
+																				Backup port
+																			</label>
+																			<input
+																				id="failbackPort"
+																				type="text"
+																				inputMode="numeric"
+																				pattern="[0-9]*"
+																				className={`form-control ${form.errors.failbackPort && form.touched.failbackPort ? "is-invalid" : ""}`}
+																				placeholder="eg: 8082"
+																				{...field}
+																			/>
+																		</div>
+																	)}
+																</Field>
+															</div>
+														</div>
+													)}
 												</div>
 												<div className="my-3">
 													<h4 className="py-2">
@@ -899,6 +994,126 @@ const ProxyHostModal = EasyModal.create(({ id, isClone = false, visible, remove 
 												<SSLOptionsFields color="bg-lime" forProxyHost={true} />
 											</div>
 											<div className="tab-pane" id="tab-advanced" role="tabpanel">
+												<div className="mb-4">
+													<h4 className="py-2">Custom error pages</h4>
+													<div className="mb-3">
+														<Field name="customErrorPage4xx">
+															{({ field }: any) => (
+																<>
+																	<label
+																		className="form-label"
+																		htmlFor="customErrorPage4xx"
+																	>
+																		4xx page HTML
+																	</label>
+																	<CodeEditor
+																		id="customErrorPage4xx"
+																		language="html"
+																		placeholder="<h1>Not available</h1>"
+																		padding={15}
+																		data-color-mode="dark"
+																		minHeight={120}
+																		indentWidth={2}
+																		style={{
+																			fontFamily:
+																				"ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+																			borderRadius: "0.3rem",
+																			minHeight: "120px",
+																		}}
+																		{...field}
+																	/>
+																</>
+															)}
+														</Field>
+													</div>
+													<div className="mb-3">
+														<Field name="customErrorPage5xx">
+															{({ field }: any) => (
+																<>
+																	<label
+																		className="form-label"
+																		htmlFor="customErrorPage5xx"
+																	>
+																		5xx page HTML
+																	</label>
+																	<CodeEditor
+																		id="customErrorPage5xx"
+																		language="html"
+																		placeholder="<h1>Service temporarily unavailable</h1>"
+																		padding={15}
+																		data-color-mode="dark"
+																		minHeight={120}
+																		indentWidth={2}
+																		style={{
+																			fontFamily:
+																				"ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+																			borderRadius: "0.3rem",
+																			minHeight: "120px",
+																		}}
+																		{...field}
+																	/>
+																</>
+															)}
+														</Field>
+													</div>
+												</div>
+												<div className="mb-4">
+													<h4 className="py-2">Country access</h4>
+													<div className="row">
+														<div className="col-md-4">
+															<Field name="countryAccessMode">
+																{({ field }: any) => (
+																	<div className="mb-3">
+																		<label
+																			className="form-label"
+																			htmlFor="countryAccessMode"
+																		>
+																			Mode
+																		</label>
+																		<select
+																			id="countryAccessMode"
+																			className="form-select"
+																			{...field}
+																		>
+																			<option value="disabled">Disabled</option>
+																			<option value="block">
+																				Block countries
+																			</option>
+																			<option value="allow">
+																				Allow only countries
+																			</option>
+																		</select>
+																	</div>
+																)}
+															</Field>
+														</div>
+														<div className="col-md-8">
+															<Field name="countryAccessCodes">
+																{({ field }: any) => (
+																	<div className="mb-3">
+																		<label
+																			className="form-label"
+																			htmlFor="countryAccessCodes"
+																		>
+																			Country codes
+																		</label>
+																		<input
+																			id="countryAccessCodes"
+																			type="text"
+																			className="form-control"
+																			placeholder="US,CA,GB"
+																			{...field}
+																		/>
+																		<div className="form-hint">
+																			Requires GeoIP2 and
+																			NPMPLUS_GEOIP_COUNTRY_BLOCKING=true.
+																		</div>
+																	</div>
+																)}
+															</Field>
+														</div>
+													</div>
+												</div>
 												<NginxConfigField />
 											</div>
 										</div>

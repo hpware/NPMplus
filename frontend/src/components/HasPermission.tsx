@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Alert from "react-bootstrap/Alert";
-import { Loading, LoadingPage } from "src/components";
+import { Button, Loading, LoadingPage } from "src/components";
+import { useAuthState } from "src/context";
 import { useUser } from "src/hooks";
 import { T } from "src/locale";
 import { type ADMIN, hasPermission, type Permission, type Section } from "src/modules/Permissions";
@@ -22,6 +23,7 @@ function HasPermission({
 	loadingNoLogo = false,
 }: Props) {
 	const { data, isLoading } = useUser("me");
+	const { logout } = useAuthState();
 
 	if (!section) {
 		return <>{children}</>;
@@ -43,8 +45,21 @@ function HasPermission({
 	}
 
 	return !hideError ? (
-		<Alert variant="danger">
-			<T id="no-permission-error" />
+		<Alert variant="warning">
+			<div className="d-flex flex-column flex-md-row gap-3 align-items-md-center justify-content-between">
+				<div>
+					<div className="fw-bold">
+						<T id="no-permission-error" />
+					</div>
+					<div className="text-secondary">
+						This account is signed in but does not have access to this area. Ask an admin to adjust this
+						user's permissions, or sign in with another account.
+					</div>
+				</div>
+				<Button color="orange" onClick={logout}>
+					Sign out
+				</Button>
+			</div>
 		</Alert>
 	) : null;
 }

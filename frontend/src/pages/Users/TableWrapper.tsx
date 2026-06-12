@@ -7,7 +7,13 @@ import { Button, LoadingPage } from "src/components";
 import { useAuthState } from "src/context";
 import { useUser, useUsers } from "src/hooks";
 import { T } from "src/locale";
-import { showDeleteConfirmModal, showPermissionsModal, showSetPasswordModal, showUserModal } from "src/modals";
+import {
+	showDeleteConfirmModal,
+	showPermissionsModal,
+	showSetPasswordModal,
+	showUserApiKeysModal,
+	showUserModal,
+} from "src/modals";
 import { showError, showObjectSuccess } from "src/notifications";
 import Table from "./Table";
 
@@ -104,6 +110,7 @@ export default function TableWrapper() {
 					currentUserId={currentUser?.id}
 					onEditUser={(id: number) => showUserModal(id)}
 					onEditPermissions={(id: number) => showPermissionsModal(id)}
+					onEditApiKeys={(id: number) => showUserApiKeysModal(id)}
 					onSetPassword={(id: number) => showSetPasswordModal(id)}
 					onDeleteUser={(id: number) =>
 						showDeleteConfirmModal({

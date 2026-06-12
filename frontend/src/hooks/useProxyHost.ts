@@ -38,6 +38,9 @@ const fetchProxyHost = (id: number | "new") => {
 			npmplusXFrameOptions: "SAMEORIGIN",
 			npmplusAuthRequest: "none",
 			npmplusAuthRequestUpstream: "",
+			failbackEnabled: false,
+			failbackHost: "",
+			failbackPort: null,
 			npmplusAccessListType: "public",
 		} as ProxyHost);
 	}

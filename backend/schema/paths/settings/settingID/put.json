@@ -19,7 +19,8 @@
 				"type": "string",
 				"minLength": 1,
 				"enum": [
-					"default-site"
+					"default-site",
+					"security-policy"
 				]
 			},
 			"required": true,
@@ -45,7 +46,8 @@
 								"404",
 								"444",
 								"redirect",
-								"html"
+								"html",
+								"enabled"
 							],
 							"example": "html"
 						},
@@ -57,6 +59,35 @@
 									"type": "string"
 								},
 								"html": {
+									"type": "string"
+								},
+								"default_waf_enabled": {
+									"type": "boolean"
+								},
+								"blocked_hostnames": {
+									"type": "string"
+								},
+								"blocked_ports": {
+									"type": "string"
+								},
+								"country_access_mode": {
+									"type": "string",
+									"enum": [
+										"disabled",
+										"block",
+										"allow"
+									]
+								},
+								"country_access_codes": {
+									"type": "string"
+								},
+								"credential_username": {
+									"type": "string"
+								},
+								"credential_password": {
+									"type": "string"
+								},
+								"openappsec_agent_token": {
 									"type": "string"
 								}
 							},

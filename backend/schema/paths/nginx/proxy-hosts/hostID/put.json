@@ -109,6 +109,15 @@
 						"npmplus_auth_request_upstream": {
 							"$ref": "../../../../components/proxy-host-object.json#/properties/npmplus_auth_request_upstream"
 						},
+						"failback_enabled": {
+							"$ref": "../../../../components/proxy-host-object.json#/properties/failback_enabled"
+						},
+						"failback_host": {
+							"$ref": "../../../../components/proxy-host-object.json#/properties/failback_host"
+						},
+						"failback_port": {
+							"$ref": "../../../../components/proxy-host-object.json#/properties/failback_port"
+						},
 						"npmplus_access_list_ids": {
 							"$ref": "../../../../components/proxy-host-object.json#/properties/npmplus_access_list_ids"
 						},
@@ -170,6 +179,9 @@
 								"npmplus_x_frame_options": "DENY",
 								"npmplus_auth_request": "none",
 								"npmplus_auth_request_upstream": "",
+								"failback_enabled": false,
+								"failback_host": "",
+								"failback_port": null,
 								"advanced_config": "",
 								"npmplus_location_config": "",
 								"meta": {

@@ -190,8 +190,13 @@ function LoginForm() {
 			{health.data?.oidc && (
 				<div className="form-footer my-0">
 					<Button type="button" fullWidth color="azure" onClick={redirectToOIDC}>
-						<T id="sign-in-with-oidc" />
+						<T id="sign-in-with-oidc" /> {health.data.oidcProviderName}
 					</Button>
+					{health.data.oidcAutoCreateUsers && (
+						<div className="text-secondary text-center small mt-2">
+							New SSO users are created automatically with default permissions.
+						</div>
+					)}
 				</div>
 			)}
 		</>

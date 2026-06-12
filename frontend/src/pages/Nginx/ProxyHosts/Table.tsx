@@ -1,4 +1,4 @@
-import { IconCopy, IconDotsVertical, IconEdit, IconPower, IconTrash } from "@tabler/icons-react";
+import { IconChartBar, IconCopy, IconDotsVertical, IconEdit, IconPower, IconTrash } from "@tabler/icons-react";
 import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import type { ProxyHost } from "src/api/backend";
@@ -21,6 +21,7 @@ interface Props {
 	isFetching?: boolean;
 	onEdit?: (id: number) => void;
 	onClone?: (id: number) => void;
+	onAnalytics?: (id: number) => void;
 	onDelete?: (id: number) => void;
 	onDisableToggle?: (id: number, enabled: boolean) => void;
 	onNew?: () => void;
@@ -30,6 +31,7 @@ export default function Table({
 	isFetching,
 	onEdit,
 	onClone,
+	onAnalytics,
 	onDelete,
 	onDisableToggle,
 	onNew,
@@ -176,6 +178,17 @@ export default function Table({
 									<IconCopy size={16} />
 									<T id="action.clone" />
 								</a>
+								<a
+									className="dropdown-item"
+									href="#"
+									onClick={(e) => {
+										e.preventDefault();
+										onAnalytics?.(info.row.original.id);
+									}}
+								>
+									<IconChartBar size={16} />
+									Analytics
+								</a>
 								<HasPermission section={PROXY_HOSTS} permission={MANAGE} hideError>
 									<a
 										className="dropdown-item"
@@ -210,7 +223,7 @@ export default function Table({
 				},
 			}),
 		],
-		[columnHelper, onEdit, onClone, onDisableToggle, onDelete],
+		[columnHelper, onEdit, onClone, onAnalytics, onDisableToggle, onDelete],
 	);
 
 	const tableInstance = useReactTable<ProxyHost>({

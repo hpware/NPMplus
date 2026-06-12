@@ -20,6 +20,31 @@
 			"type": "string",
 			"description": "The version string",
 			"example": "..."
+		},
+		"password": {
+			"type": "boolean",
+			"description": "Whether password login is available",
+			"example": true
+		},
+		"oidc": {
+			"type": "boolean",
+			"description": "Whether OIDC login is configured",
+			"example": true
+		},
+		"oidc_provider_name": {
+			"type": "string",
+			"description": "Display name for the configured OIDC provider",
+			"example": "Authentik"
+		},
+		"oidc_auto_create_users": {
+			"type": "boolean",
+			"description": "Whether OIDC users are provisioned automatically",
+			"example": false
+		},
+		"analytics_retention_days": {
+			"type": "integer",
+			"description": "How many recent days the embedded analytics API reads from logs",
+			"example": 3
 		}
 	}
 }

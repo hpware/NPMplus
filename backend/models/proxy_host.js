@@ -31,6 +31,7 @@ const boolFields = [
 	"npmplus_fancyindex",
 	"npmplus_disable_uri_sanitisation",
 	"npmplus_spoof_host_header",
+	"failback_enabled",
 ];
 
 class ProxyHost extends Model {
@@ -56,6 +57,10 @@ class ProxyHost extends Model {
 		// Default for access list ids
 		if (typeof this.npmplus_access_list_ids === "undefined") {
 			this.npmplus_access_list_ids = [];
+		}
+
+		if (typeof this.failback_enabled === "undefined") {
+			this.failback_enabled = false;
 		}
 	}
 

@@ -1,3 +1,7 @@
+import { createReadStream } from "node:fs";
+import { access as fsAccess, mkdir, readdir, rm, truncate } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
 import _ from "lodash";
 import errs from "../lib/error.js";
 import { castJsonIfNeed } from "../lib/helpers.js";
@@ -12,6 +16,55 @@ import internalProxyHostAccessList from "./proxy-host-access-list.js";
 const omissions = () => {
 	return ["is_deleted", "owner.is_deleted"];
 };
+
+const accessLogPath = process.env.NPMPLUS_ACCESS_LOG || "/data/nginx/logs/access.log";
+const analyticsRetentionDays = Number.parseInt(process.env.NPMPLUS_ANALYTICS_RETENTION_DAYS || "3", 10);
+
+const emptyAnalytics = () => ({
+	total_requests: 0,
+	total_bytes_sent: 0,
+	average_request_time: 0,
+	uptime_percent: 0,
+	last_seen: null,
+	statuses: {},
+	methods: {},
+	top_paths: [],
+});
+
+const parseAccessLogLine = (line) => {
+	const match = line.match(
+		/^\[([^\]]+)\]\s+(\S+)\s+\S+\s+([0-9.]+)\s+"([A-Z]+)\s+([^"]*?)\s+HTTP\/[^"]+"\s+(\d{3})\s+(\d+|-)\s+\d+\s+/,
+	);
+	if (!match) {
+		return null;
+	}
+
+	return {
+		timestamp: Date.parse(match[1].replace(":", " ")),
+		host: match[2],
+		requestTime: Number.parseFloat(match[3]) || 0,
+		method: match[4],
+		path: match[5] || "/",
+		status: Number.parseInt(match[6], 10),
+		bytesSent: match[7] === "-" ? 0 : Number.parseInt(match[7], 10),
+	};
+};
+
+const normalizeAnalytics = (stats) => ({
+	total_requests: stats.total_requests,
+	total_bytes_sent: stats.total_bytes_sent,
+	average_request_time:
+		stats.total_requests > 0 ? Number((stats.total_request_time / stats.total_requests).toFixed(4)) : 0,
+	uptime_percent:
+		stats.total_requests > 0 ? Number(((stats.successful_requests / stats.total_requests) * 100).toFixed(3)) : 0,
+	last_seen: stats.last_seen ? new Date(stats.last_seen).toISOString() : null,
+	statuses: stats.statuses,
+	methods: stats.methods,
+	top_paths: Object.entries(stats.paths)
+		.map(([path, requests]) => ({ path, requests }))
+		.sort((a, b) => b.requests - a.requests || a.path.localeCompare(b.path))
+		.slice(0, 25),
+});
 
 const internalProxyHost = {
 	/**
@@ -517,6 +570,90 @@ const internalProxyHost = {
 			return internalHost.cleanAllRowsCertificateMeta(aclRows);
 		}
 		return aclRows;
+	},
+
+	/**
+	 * @param   {Access} access
+	 * @param   {Object} data
+	 * @param   {Number} data.id
+	 * @returns {Promise}
+	 */
+	getAnalytics: async (access, data) => {
+		await access.can("proxy_hosts:analytics", data.id);
+		const host = await internalProxyHost.get(access, { id: data.id });
+		const hostnames = new Set(host.domain_names || []);
+		const retentionMs = Number.isFinite(analyticsRetentionDays)
+			? Math.max(analyticsRetentionDays, 1) * 24 * 60 * 60 * 1000
+			: 3 * 24 * 60 * 60 * 1000;
+		const oldestTimestamp = Date.now() - retentionMs;
+		const stats = {
+			total_requests: 0,
+			total_bytes_sent: 0,
+			total_request_time: 0,
+			successful_requests: 0,
+			last_seen: null,
+			statuses: {},
+			methods: {},
+			paths: {},
+		};
+
+		try {
+			await fsAccess(accessLogPath);
+		} catch {
+			return emptyAnalytics();
+		}
+
+		const rl = createInterface({
+			input: createReadStream(accessLogPath, { encoding: "utf8" }),
+			crlfDelay: Number.POSITIVE_INFINITY,
+		});
+
+		for await (const line of rl) {
+			const entry = parseAccessLogLine(line);
+			if (!entry || !hostnames.has(entry.host) || entry.timestamp < oldestTimestamp) {
+				continue;
+			}
+
+			stats.total_requests += 1;
+			stats.total_bytes_sent += entry.bytesSent;
+			stats.total_request_time += entry.requestTime;
+			if (entry.status < 500) {
+				stats.successful_requests += 1;
+			}
+			if (!stats.last_seen || entry.timestamp > stats.last_seen) {
+				stats.last_seen = entry.timestamp;
+			}
+			stats.statuses[entry.status] = (stats.statuses[entry.status] || 0) + 1;
+			stats.methods[entry.method] = (stats.methods[entry.method] || 0) + 1;
+			stats.paths[entry.path] = (stats.paths[entry.path] || 0) + 1;
+		}
+
+		return normalizeAnalytics(stats);
+	},
+
+	clearAnalytics: async (access) => {
+		await access.can("settings:update", "analytics");
+		const logDir = dirname(accessLogPath);
+
+		try {
+			await truncate(accessLogPath, 0);
+		} catch {}
+
+		try {
+			const files = await readdir(logDir);
+			await Promise.all(
+				files
+					.filter((file) => /^access\.log\.\d+/.test(file))
+					.map((file) => rm(join(logDir, file), { force: true })),
+			);
+		} catch {}
+
+		try {
+			await rm("/data/goaccess/data", { recursive: true, force: true });
+			await mkdir("/data/goaccess/data", { recursive: true });
+		} catch {}
+
+		return true;
 	},
 
 	/**

@@ -242,6 +242,184 @@ router
 	});
 
 /**
+ * Specific user API keys
+ *
+ * /api/users/123/api-keys
+ */
+router
+	.route("/:user_id/api-keys")
+	.options((_, res) => {
+		res.sendStatus(204);
+	})
+	.all(jwtdecode())
+	.all(userIdFromMe)
+
+	/**
+	 * GET /api/users/123/api-keys
+	 *
+	 * List API keys for a user
+	 */
+	.get(async (req, res, next) => {
+		try {
+			const data = await validator(
+				{
+					required: ["user_id"],
+					additionalProperties: false,
+					properties: {
+						user_id: {
+							$ref: "common#/properties/id",
+						},
+					},
+				},
+				{
+					user_id: req.params.user_id,
+				},
+			);
+			const result = await internalUser.getApiKeys(res.locals.access, { id: data.user_id });
+			res.status(200).send(result);
+		} catch (err) {
+			debug(logger, `${req.method.toUpperCase()} ${req.originalUrl}: ${err}`);
+			next(err);
+		}
+	})
+
+	/**
+	 * POST /api/users/123/api-keys
+	 *
+	 * Create an API key for a user
+	 */
+	.post(async (req, res, next) => {
+		try {
+			const data = await validator(
+				{
+					required: ["user_id", "name"],
+					additionalProperties: false,
+					properties: {
+						user_id: {
+							$ref: "common#/properties/id",
+						},
+						name: {
+							type: "string",
+							minLength: 1,
+							maxLength: 100,
+						},
+						permissions: {
+							type: "object",
+							additionalProperties: false,
+							properties: {
+								admin: {
+									type: "boolean",
+								},
+								visibility: {
+									type: "string",
+									enum: ["all", "user"],
+								},
+								proxy_hosts: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+								redirection_hosts: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+								dead_hosts: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+								streams: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+								access_lists: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+								certificates: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+								dns: {
+									type: "string",
+									enum: ["hidden", "view", "manage"],
+								},
+							},
+						},
+						expires_on: {
+							anyOf: [
+								{
+									type: "string",
+									minLength: 1,
+								},
+								{
+									type: "null",
+								},
+							],
+						},
+					},
+				},
+				{
+					user_id: req.params.user_id,
+					...req.body,
+				},
+			);
+			const result = await internalUser.createApiKey(res.locals.access, { id: data.user_id, ...data });
+			res.status(201).send(result);
+		} catch (err) {
+			debug(logger, `${req.method.toUpperCase()} ${req.originalUrl}: ${err}`);
+			next(err);
+		}
+	});
+
+/**
+ * Specific user API key
+ *
+ * /api/users/123/api-keys/456
+ */
+router
+	.route("/:user_id/api-keys/:key_id")
+	.options((_, res) => {
+		res.sendStatus(204);
+	})
+	.all(jwtdecode())
+	.all(userIdFromMe)
+
+	/**
+	 * DELETE /api/users/123/api-keys/456
+	 *
+	 * Revoke an API key
+	 */
+	.delete(async (req, res, next) => {
+		try {
+			const data = await validator(
+				{
+					required: ["user_id", "key_id"],
+					additionalProperties: false,
+					properties: {
+						user_id: {
+							$ref: "common#/properties/id",
+						},
+						key_id: {
+							$ref: "common#/properties/id",
+						},
+					},
+				},
+				{
+					user_id: req.params.user_id,
+					key_id: req.params.key_id,
+				},
+			);
+			const result = await internalUser.deleteApiKey(res.locals.access, {
+				id: data.user_id,
+				key_id: data.key_id,
+			});
+			res.status(200).send(result);
+		} catch (err) {
+			debug(logger, `${req.method.toUpperCase()} ${req.originalUrl}: ${err}`);
+			next(err);
+		}
+	});
+
+/**
  * Specific user login as
  *
  * /api/users/123/login

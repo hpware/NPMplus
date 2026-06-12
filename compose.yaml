@@ -50,7 +50,8 @@ services:
 #      - "PUID=1000" # set user id, needs to be a number greater or equal to 99, or equal to 0, default 0 (root), if network mode host is used and PUID changed, you may need to set sysctl net.ipv4.ip_unprivileged_port_start=0 to bind ports like 80 or 443, please note that this will allow all non-root services to bind ports below 1024
 #      - "PGID=1000" # set group id, needs to be a number greater or equal to 99, or equal to 0, default 0 (root), requires non-zero PUID
 #      - "NPM_PORT=82" # Port the NPM UI should be bound to, default 81, change this if you want to run multiple npm instances in network mode host
-#      - "GOA_PORT=92" # Port for goaccess, default 91, change this if you want to run multiple npm with goaccess instances in network mode host
+#      - "GOA_STANDALONE=true" # Exposes goaccess on GOA_PORT, default false; when false goaccess is only available at /goaccess/ inside the NPMplus dashboard listener
+#      - "GOA_PORT=92" # Standalone goaccess port, default 91, only used when GOA_STANDALONE=true
 #      - "IPV4_BINDING=127.0.0.1" # IPv4 address to bind, defaults to all
 #      - "NPM_IPV4_BINDING=127.0.0.1" # IPv4 address to bind for the NPM UI, defaults to all
 #      - "GOA_IPV4_BINDING=127.0.0.1" # IPv4 address to bind for goaccess, defaults to all
@@ -80,6 +81,8 @@ services:
 #      - "DISABLE_NGINX_BEAUTIFIER=true" # disables nginxbeautifier, useful when it fails parsing non-standard custom/advanced configs, default false
 #      - "LOGROTATE=true" # Enables writing http access logs to /opt/npmplus/nginx/logs/access.log, stream access logs to /opt/npmplus/nginx/logs/stream.log and enables daily logrotation, default false
 #      - "LOGROTATIONS=7" # Set how often the access.log should be rotated until it is deleted, default 3
+#      - "NPMPLUS_ANALYTICS_RETENTION_DAYS=3" # How many recent days the embedded analytics API should read from logs, default 3
+#      - "NPMPLUS_GEOIP_COUNTRY_BLOCKING=true" # Enables per-proxy country allow/block rules, requires NGINX_LOAD_GEOIP2_MODULE and a configured $geoip2_country_iso_code variable, default false
 #      - "TRUST_CLOUDFLARE=true" # Enables fetching/whitelisting IPs from cloudflare, so nginx will see the real client IPs, default false
 #      - "CERTBOT_RUN_INTERVAL=72" # Set how many hours should be between certbot trying to renew your certs if needed, default 3
 #      - "ECH_ROTATION_INTERVAL=3" # Set how many hours should be between the runs of your ech cron script, default 1
@@ -111,6 +114,16 @@ services:
 #      - "OIDC_CLIENT_SECRET=..." # client secret for oidc
 #      - "OIDC_REQUIRE_VERIFIED_EMAIL=false" # requires the email sent by the OIDC Provider to be marked as verified, default true
 #      - "OIDC_DISABLE_PASSWORD=true" # disables plain email/password login, default false
+#      - "OIDC_PROVIDER_NAME=Authentik" # Display name shown on the login button, default OIDC
+#      - "OIDC_AUTO_CREATE_USERS=true" # Creates local NPMplus users on first successful OIDC login, default false
+#      - "OIDC_AUTO_CREATE_ADMIN_EMAILS=admin@example.com" # Comma-separated OIDC emails that become NPMplus admins when auto-created, default empty
+#      - "OIDC_DEFAULT_VISIBILITY=user" # Default visibility for auto-created OIDC users: user/all, default user
+#      - "OIDC_DEFAULT_PROXY_HOSTS=view" # Default proxy host permission: hidden/view/manage, default view
+#      - "OIDC_DEFAULT_REDIRECTION_HOSTS=hidden" # Default redirection host permission, default hidden
+#      - "OIDC_DEFAULT_DEAD_HOSTS=hidden" # Default 404 host permission, default hidden
+#      - "OIDC_DEFAULT_STREAMS=hidden" # Default stream permission, default hidden
+#      - "OIDC_DEFAULT_ACCESS_LISTS=view" # Default access list permission, default view
+#      - "OIDC_DEFAULT_CERTIFICATES=view" # Default certificate permission, default view
 #      - "AUTH_REQUEST_ANUBIS_UPSTREAM=http://127.0.0.1:8923" # scheme + ip/hostname/domain (+ port) to internal anubis, without path, this is unrelated to OIDC
 #      - "AUTH_REQUEST_TINYAUTH_UPSTREAM=http://127.0.0.1:3000" # scheme + ip/hostname/domain (+ port) to internal tinyauth, without path, this is unrelated to OIDC
 #      - "AUTH_REQUEST_OAUTH2PROXY_UPSTREAM=http://127.0.0.1:4180" # scheme + ip/hostname/domain (+ port) to internal oauth2proxy, without path, this is unrelated to OIDC

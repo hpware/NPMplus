@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import errs from "../lib/error.js";
+import proxyHostModel from "../models/proxy_host.js";
 import settingModel from "../models/setting.js";
 import internalNginx from "./nginx.js";
 
@@ -67,6 +68,18 @@ const internalSetting = {
 									throw new errs.ValidationError("Could not reconfigure Nginx. Please check logs.");
 								});
 						});
+				}
+				if (row.id === "security-policy") {
+					const proxyHosts = await proxyHostModel
+						.query()
+						.where("is_deleted", 0)
+						.allowGraph("[access_lists]")
+						.withGraphFetched("[access_lists.[clients, items]]");
+
+					for (const proxyHost of proxyHosts) {
+						await internalNginx.configure(proxyHostModel, "proxy_host", proxyHost, { skipReload: true });
+					}
+					await internalNginx.reload();
 				}
 				return row;
 			});

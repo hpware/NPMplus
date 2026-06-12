@@ -36,6 +36,7 @@
 					"visibility": "all",
 					"access_lists": "view",
 					"certificates": "hidden",
+					"dns": "view",
 					"dead_hosts": "hidden",
 					"proxy_hosts": "manage",
 					"redirection_hosts": "hidden",

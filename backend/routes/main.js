@@ -3,18 +3,18 @@ import errs from "../lib/error.js";
 import pjson from "../package.json" with { type: "json" };
 import { isSetup } from "../setup.js";
 import auditLogRoutes from "./audit-log.js";
+import docsRoutes from "./docs.js";
 import accessListsRoutes from "./nginx/access_lists.js";
 import certificatesHostsRoutes from "./nginx/certificates.js";
 import deadHostsRoutes from "./nginx/dead_hosts.js";
 import proxyHostsRoutes from "./nginx/proxy_hosts.js";
 import redirectionHostsRoutes from "./nginx/redirection_hosts.js";
 import streamsRoutes from "./nginx/streams.js";
+import oidcRoutes from "./oidc.js";
 import reportsRoutes from "./reports.js";
-import docsRoutes from "./docs.js";
 import schemaRoutes from "./schema.js";
 import settingsRoutes from "./settings.js";
 import tokensRoutes from "./tokens.js";
-import oidcRoutes from "./oidc.js";
 import usersRoutes from "./users.js";
 import versionRoutes from "./version.js";
 
@@ -42,6 +42,9 @@ router.get(["/api", "/api/"], async (_, res /*, next*/) => {
 		version: pjson.version,
 		password: process.env.OIDC_DISABLE_PASSWORD === "false",
 		oidc: isOIDCenabled,
+		oidc_provider_name: process.env.OIDC_PROVIDER_NAME || "OIDC",
+		oidc_auto_create_users: process.env.OIDC_AUTO_CREATE_USERS === "true",
+		analytics_retention_days: Number.parseInt(process.env.NPMPLUS_ANALYTICS_RETENTION_DAYS || "3", 10),
 	});
 });
 

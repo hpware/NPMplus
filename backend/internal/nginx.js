@@ -5,10 +5,68 @@ import _ from "lodash";
 import errs from "../lib/error.js";
 import utils from "../lib/utils.js";
 import { debug, nginx as logger } from "../logger.js";
+import settingModel from "../models/setting.js";
 import internalProxyHostAccessList from "./proxy-host-access-list.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const classifyNginxError = (message) => {
+	if (/ssl|certificate|private key|PEM|x509|OCSP|stapling/i.test(message)) {
+		return `SSL configuration error: ${message}`;
+	}
+
+	return message;
+};
+
+const normalizeCountryCodes = (value) =>
+	(value || "")
+		.split(",")
+		.map((code) => code.trim().toUpperCase())
+		.filter((code) => /^[A-Z]{2}$/.test(code))
+		.join("|");
+
+const normalizeHostnames = (value) =>
+	(value || "")
+		.split(",")
+		.map((hostname) =>
+			hostname
+				.trim()
+				.toLowerCase()
+				.replace(/^\.+|\.+$/g, ""),
+		)
+		.filter((hostname) => /^[a-z0-9*.-]+$/.test(hostname))
+		.map((hostname) => hostname.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, "[^.]+"))
+		.join("|");
+
+const normalizePorts = (value) =>
+	(value || "")
+		.split(",")
+		.map((port) => port.trim())
+		.filter((port) => /^(?:[1-9][0-9]{0,4})$/.test(port) && Number(port) <= 65535)
+		.join("|");
+
+const getSecurityPolicy = async () => {
+	const row = await settingModel.query().where("id", "security-policy").first();
+	return row?.meta || {};
+};
+
+const prepareHostMetaForNginx = async (host) => {
+	host.meta = host.meta || {};
+	const securityPolicy = await getSecurityPolicy();
+	host.meta.custom_error_page_4xx_nginx = host.meta.custom_error_page_4xx
+		? JSON.stringify(host.meta.custom_error_page_4xx)
+		: "";
+	host.meta.custom_error_page_5xx_nginx = host.meta.custom_error_page_5xx
+		? JSON.stringify(host.meta.custom_error_page_5xx)
+		: "";
+	host.meta.country_access_pattern = normalizeCountryCodes(host.meta.country_access_codes);
+	host.meta.security_default_waf_enabled = securityPolicy.default_waf_enabled === true;
+	host.meta.global_blocked_hostname_pattern = normalizeHostnames(securityPolicy.blocked_hostnames);
+	host.meta.global_blocked_port_pattern = normalizePorts(securityPolicy.blocked_ports);
+	host.meta.global_country_access_mode = securityPolicy.country_access_mode || "disabled";
+	host.meta.global_country_access_pattern = normalizeCountryCodes(securityPolicy.country_access_codes);
+};
 
 const internalNginx = {
 	/**
@@ -43,12 +101,13 @@ const internalNginx = {
 				meta: combined_meta,
 			});
 		} catch (err) {
-			logger.error(err.message);
+			const classifiedMessage = classifyNginxError(err.message);
+			logger.error(classifiedMessage);
 
 			// config is bad, update meta and rename config
 			combined_meta = _.assign({}, host.meta, {
 				nginx_online: false,
-				nginx_err: err.message,
+				nginx_err: classifiedMessage,
 			});
 
 			await model.query().where("id", host.id).patch({
@@ -271,6 +330,7 @@ const internalNginx = {
 		}
 
 		host.env = process.env;
+		await prepareHostMetaForNginx(host);
 
 		if (
 			host.forward_host &&

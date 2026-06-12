@@ -1,8 +1,9 @@
-import * as client from "openid-client";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
-import errs from "../lib/error.js";
+import * as client from "openid-client";
 import internalToken from "../internal/token.js";
+import internalUser from "../internal/user.js";
+import errs from "../lib/error.js";
 import { oidc as logger } from "../logger.js";
 
 const router = express.Router({
@@ -139,9 +140,15 @@ router
 				throw new errs.AuthError("The email address has not been verified.");
 			}
 
-			logger.info(`Successful authentication for email: ${claims.email.toLowerCase().trim()}`);
+			const email = claims.email.toLowerCase().trim();
+			logger.info(`Successful authentication for email: ${email}`);
 
-			const data = await internalToken.getTokenFromOAuthClaim({ identity: claims.email.toLowerCase().trim() });
+			await internalUser.ensureFromOidcClaim({
+				email,
+				name: claims.name || claims.preferred_username || claims.nickname,
+			});
+
+			const data = await internalToken.getTokenFromOAuthClaim({ identity: email });
 
 			res.cookie("__Host-Http-token", data.token, {
 				signed: true,

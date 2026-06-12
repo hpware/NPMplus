@@ -1,5 +1,7 @@
 import { T } from "src/locale";
+import Analytics from "./Analytics";
 import DefaultSite from "./DefaultSite";
+import SecurityPolicy from "./SecurityPolicy";
 
 export default function Layout() {
 	// Taken from https://preview.tabler.io/settings.html
@@ -32,6 +34,10 @@ export default function Layout() {
 					</div>
 					<div className="col-12 col-md-9 d-flex flex-column">
 						<DefaultSite />
+						<hr className="m-0" />
+						<Analytics />
+						<hr className="m-0" />
+						<SecurityPolicy />
 					</div>
 				</div>
 			</div>

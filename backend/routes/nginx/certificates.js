@@ -1,7 +1,6 @@
 import express from "express";
 import dnsPlugins from "../../certbot/dns-plugins.json" with { type: "json" };
 import internalCertificate from "../../internal/certificate.js";
-import errs from "../../lib/error.js";
 import jwtdecode from "../../lib/express/jwt-decode.js";
 import apiValidator from "../../lib/validator/api.js";
 import validator from "../../lib/validator/index.js";
@@ -90,9 +89,7 @@ router
 	 */
 	.get(async (req, res, next) => {
 		try {
-			if (!res.locals.access.token.getUserId()) {
-				throw new errs.PermissionError("Login required");
-			}
+			await res.locals.access.can("dns-providers:list");
 			const clean = Object.keys(dnsPlugins).map((key) => ({
 				id: key,
 				name: dnsPlugins[key].name,

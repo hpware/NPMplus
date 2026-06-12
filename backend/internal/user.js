@@ -1,19 +1,71 @@
-import _ from "lodash";
 import crypto from "node:crypto";
 import { writeFile } from "node:fs/promises";
+import _ from "lodash";
 import errs from "../lib/error.js";
 import utils from "../lib/utils.js";
 import { gravatar as logger } from "../logger.js";
 import authModel from "../models/auth.js";
 import userModel from "../models/user.js";
+import userApiKeyModel from "../models/user_api_key.js";
 import userPermissionModel from "../models/user_permission.js";
+import pjson from "../package.json" with { type: "json" };
 import internalAuditLog from "./audit-log.js";
 import internalToken from "./token.js";
-import pjson from "../package.json" with { type: "json" };
 
 const omissions = () => {
 	return ["is_deleted", "permissions.id", "permissions.user_id", "permissions.created_on", "permissions.modified_on"];
 };
+
+const permissionOrDefault = (value, fallback) => {
+	return ["hidden", "view", "manage"].includes(value) ? value : fallback;
+};
+
+const clampPermission = (requested, allowed) => {
+	const rank = { hidden: 0, view: 1, manage: 2 };
+	const requestedValue = permissionOrDefault(requested, "hidden");
+	const allowedValue = permissionOrDefault(allowed, "hidden");
+	return rank[requestedValue] <= rank[allowedValue] ? requestedValue : allowedValue;
+};
+
+const visibilityOrDefault = (value) => {
+	return ["user", "all"].includes(value) ? value : "user";
+};
+
+const splitEnvList = (value) => {
+	return (value || "")
+		.split(",")
+		.map((item) => item.trim().toLowerCase())
+		.filter(Boolean);
+};
+
+const oidcDefaultPermissions = () => ({
+	visibility: visibilityOrDefault(process.env.OIDC_DEFAULT_VISIBILITY),
+	proxy_hosts: permissionOrDefault(process.env.OIDC_DEFAULT_PROXY_HOSTS, "view"),
+	redirection_hosts: permissionOrDefault(process.env.OIDC_DEFAULT_REDIRECTION_HOSTS, "hidden"),
+	dead_hosts: permissionOrDefault(process.env.OIDC_DEFAULT_DEAD_HOSTS, "hidden"),
+	streams: permissionOrDefault(process.env.OIDC_DEFAULT_STREAMS, "hidden"),
+	access_lists: permissionOrDefault(process.env.OIDC_DEFAULT_ACCESS_LISTS, "view"),
+	certificates: permissionOrDefault(process.env.OIDC_DEFAULT_CERTIFICATES, "view"),
+	dns: permissionOrDefault(process.env.OIDC_DEFAULT_DNS, "hidden"),
+});
+
+const isOidcAdminEmail = (email) => splitEnvList(process.env.OIDC_AUTO_CREATE_ADMIN_EMAILS).includes(email);
+
+const apiKeyOmissions = () => ["token_hash"];
+
+const hashApiKeyToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
+
+const normalizeApiKeyPermissions = (requested, userPermissions) => ({
+	admin: requested?.admin === true,
+	visibility: requested?.visibility === "all" && userPermissions?.visibility === "all" ? "all" : "user",
+	proxy_hosts: clampPermission(requested?.proxy_hosts, userPermissions?.proxy_hosts),
+	redirection_hosts: clampPermission(requested?.redirection_hosts, userPermissions?.redirection_hosts),
+	dead_hosts: clampPermission(requested?.dead_hosts, userPermissions?.dead_hosts),
+	streams: clampPermission(requested?.streams, userPermissions?.streams),
+	access_lists: clampPermission(requested?.access_lists, userPermissions?.access_lists),
+	certificates: clampPermission(requested?.certificates, userPermissions?.certificates),
+	dns: clampPermission(requested?.dns, userPermissions?.dns),
+});
 
 const internalUser = {
 	/**
@@ -112,6 +164,7 @@ const internalUser = {
 			streams: "manage",
 			access_lists: "manage",
 			certificates: "manage",
+			dns: "manage",
 		});
 
 		user = await internalUser.get(access, { id: user.id, expand: ["permissions"] });
@@ -121,6 +174,60 @@ const internalUser = {
 			object_type: "user",
 			object_id: user.id,
 			meta: user,
+		});
+
+		return user;
+	},
+
+	/**
+	 * Create or return a local user for a trusted OIDC identity.
+	 *
+	 * @param   {Object} data
+	 * @param   {String} data.email
+	 * @param   {String} [data.name]
+	 * @returns {Promise}
+	 */
+	ensureFromOidcClaim: async (data) => {
+		const email = data.email.toLowerCase().trim();
+		const existing = await userModel
+			.query()
+			.where("email", email)
+			.andWhere("is_deleted", 0)
+			.andWhere("is_disabled", 0)
+			.first();
+
+		if (existing) {
+			return existing;
+		}
+
+		if (process.env.OIDC_AUTO_CREATE_USERS !== "true") {
+			throw new errs.AuthError("OIDC user is not allowed. Ask an administrator to create this user first.");
+		}
+
+		const name = (data.name || email.split("@").shift() || email).trim();
+		const isAdmin = isOidcAdminEmail(email);
+		const user = await userModel.query().insertAndFetch({
+			email,
+			name,
+			nickname: name,
+			avatar: "/images/default-avatar.jpg",
+			roles: isAdmin ? ["admin"] : [],
+		});
+
+		await userPermissionModel.query().insert({
+			user_id: user.id,
+			...(isAdmin
+				? {
+						visibility: "all",
+						proxy_hosts: "manage",
+						redirection_hosts: "manage",
+						dead_hosts: "manage",
+						streams: "manage",
+						access_lists: "manage",
+						certificates: "manage",
+						dns: "manage",
+					}
+				: oidcDefaultPermissions()),
 		});
 
 		return user;
@@ -571,6 +678,97 @@ const internalUser = {
 			.then(() => {
 				return true;
 			});
+	},
+
+	/**
+	 * @param  {Access}  access
+	 * @param  {Object}  data
+	 * @param  {Integer} data.id
+	 * @return {Promise}
+	 */
+	getApiKeys: async (access, data) => {
+		await access.can("users:api_keys", data.id);
+		const rows = await userApiKeyModel
+			.query()
+			.where("user_id", data.id)
+			.andWhere("is_deleted", 0)
+			.orderBy("created_on", "DESC");
+		return utils.omitRows(apiKeyOmissions())(rows);
+	},
+
+	/**
+	 * @param  {Access}  access
+	 * @param  {Object}  data
+	 * @param  {Integer} data.id
+	 * @param  {String}  data.name
+	 * @param  {Object}  data.permissions
+	 * @param  {String}  [data.expires_on]
+	 * @return {Promise}
+	 */
+	createApiKey: async (access, data) => {
+		await access.can("users:api_keys", data.id);
+		const user = await internalUser.get(access, { id: data.id, expand: ["permissions"] });
+		const token = `npmplus_${crypto.randomBytes(32).toString("base64url")}`;
+		const permissions = normalizeApiKeyPermissions(data.permissions || {}, user.permissions || {});
+		const row = await userApiKeyModel.query().insertAndFetch({
+			user_id: data.id,
+			name: data.name.trim(),
+			token_prefix: token.slice(0, 16),
+			token_hash: hashApiKeyToken(token),
+			permissions,
+			expires_on: data.expires_on || null,
+		});
+
+		await internalAuditLog.add(access, {
+			action: "created",
+			object_type: "user_api_key",
+			object_id: row.id,
+			meta: {
+				user_id: data.id,
+				name: row.name,
+				token_prefix: row.token_prefix,
+				permissions,
+			},
+		});
+
+		return {
+			..._.omit(row, apiKeyOmissions()),
+			token,
+		};
+	},
+
+	/**
+	 * @param  {Access}  access
+	 * @param  {Object}  data
+	 * @param  {Integer} data.id
+	 * @param  {Integer} data.key_id
+	 * @return {Promise}
+	 */
+	deleteApiKey: async (access, data) => {
+		await access.can("users:api_keys", data.id);
+		const row = await userApiKeyModel
+			.query()
+			.where("id", data.key_id)
+			.andWhere("user_id", data.id)
+			.andWhere("is_deleted", 0)
+			.first();
+
+		if (!row) {
+			throw new errs.ItemNotFoundError(data.key_id);
+		}
+
+		await userApiKeyModel.query().patchAndFetchById(row.id, { is_deleted: 1 });
+		await internalAuditLog.add(access, {
+			action: "deleted",
+			object_type: "user_api_key",
+			object_id: row.id,
+			meta: {
+				user_id: data.id,
+				name: row.name,
+				token_prefix: row.token_prefix,
+			},
+		});
+		return true;
 	},
 
 	/**
